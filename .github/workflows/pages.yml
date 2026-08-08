@@ -1,0 +1,76 @@
+name: Deploy board to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'data/**'
+      - 'engine/build_seed.py'
+      - 'engine/build_register_md.py'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time. Don't cancel a run in progress — a half-deployed
+# board is worse than a slightly stale one.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Regenerate the clause register
+        run: python3 engine/build_seed.py
+
+      - name: Fail if the committed register drifted from the generator
+        run: |
+          if ! git diff --quiet -- data/seed_data.json docs/assets/data/data.js; then
+            echo "::error::data/seed_data.json or docs/assets/data/data.js is out of date."
+            echo "Run 'python3 engine/build_seed.py' and commit the result."
+            git --no-pager diff --stat -- data/ docs/assets/data/
+            exit 1
+          fi
+          echo "Register is in sync with engine/build_seed.py"
+
+      - name: Rebuild the clause register markdown
+        run: python3 engine/build_register_md.py
+
+      - name: Stamp the build
+        run: |
+          COMMIT="${GITHUB_SHA::7}"
+          BUILT="$(date -u '+%Y-%m-%d %H:%M UTC')"
+          sed -i "s|</body>|<!-- build ${COMMIT} · ${BUILT} -->\n</body>|" docs/index.html
+          echo "Stamped ${COMMIT}"
+
+      - name: Disable Jekyll processing
+        run: touch docs/.nojekyll
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
