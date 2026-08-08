@@ -41,6 +41,7 @@
       <button class="btn sm" id="btnImport">Import JSON</button>
       <button class="btn sm" id="btnExport">Export JSON</button>
       <button class="btn sm" id="btnCsv">Export CSV</button>
+      <button class="btn sm" id="btnPrint">Print</button>
       <button class="btn sm pri" id="btnSync">Sync to Sheet</button>
       <input type="file" id="fileIn" accept="application/json" hidden>
     </header>
@@ -70,6 +71,9 @@
 
 <script src="assets/js/config.js"></script>
 <script src="assets/data/data.js"></script>
+<!-- Modules register their views before app.js builds the navigation. -->
+<script src="assets/js/grid.js"></script>
+<script src="assets/js/cap.js"></script>
 <script src="assets/js/app.js"></script>
 </body>
 </html>
