@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NEXT Code of Practice — Readiness Board</title>
+<meta name="description" content="Implementation board for the NEXT plc Supplier Auditing Standards, June 2025. 255 graded clauses, ORSVAI accountability, a twenty-week plan and management performance reporting.">
+<meta name="color-scheme" content="light">
+<meta property="og:title" content="NEXT Code of Practice — Readiness Board">
+<meta property="og:description" content="255 graded clauses, ORSVAI accountability, twenty-week plan, management performance reporting.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230F1A1F'/%3E%3Crect x='6' y='7' width='20' height='4' fill='%23E8B004'/%3E%3Crect x='6' y='14' width='14' height='4' fill='%232E6F8E'/%3E%3Crect x='6' y='21' width='8' height='4' fill='%23C6342A'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/board.css">
+</head>
+<body>
+<div class="app">
+
+  <!-- ================================================================ rail -->
+  <aside class="rail">
+    <div class="brand">
+      <span class="mark">NEXT COP</span>
+      <h1>Readiness Board</h1>
+      <p>Supplier Auditing Standards · June 2025</p>
+      <p id="siteName" class="site"></p>
+    </div>
+    <nav class="nav" id="nav"></nav>
+    <div class="railfoot" id="railPartners"></div>
+  </aside>
+
+  <!-- ================================================================ main -->
+  <div class="main">
+    <header class="topbar">
+      <div>
+        <h2 id="vTitle">Overview</h2>
+        <div class="sub" id="vSub"></div>
+      </div>
+      <div class="spacer"></div>
+      <button class="btn sm" id="btnImport">Import JSON</button>
+      <button class="btn sm" id="btnExport">Export JSON</button>
+      <button class="btn sm" id="btnCsv">Export CSV</button>
+      <button class="btn sm pri" id="btnSync">Sync to Sheet</button>
+      <input type="file" id="fileIn" accept="application/json" hidden>
+    </header>
+
+    <main class="view" id="view"></main>
+
+    <footer class="sitefoot">
+      <div class="pt"><b>Credit partner</b><span id="footCredit"></span></div>
+      <div class="pt"><b>Technology partner</b><span id="footTech"></span></div>
+      <div class="spacer"></div>
+      <div id="footMeta"></div>
+    </footer>
+  </div>
+</div>
+
+<div class="scrim" id="scrim"><div class="modal" id="modal"></div></div>
+<div class="toast" id="toast"></div>
+
+<noscript>
+  <div style="padding:28px;max-width:640px;margin:0 auto;font-family:system-ui,sans-serif">
+    <h2>This board needs JavaScript</h2>
+    <p>The readiness board runs entirely in your browser — nothing is sent anywhere unless you
+    press Sync. Enable JavaScript, or read the clause register directly from
+    <code>data/seed_data.json</code> in the repository.</p>
+  </div>
+</noscript>
+
+<script src="assets/js/config.js"></script>
+<script src="assets/data/data.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>
