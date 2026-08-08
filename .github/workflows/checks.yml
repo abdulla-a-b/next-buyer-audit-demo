@@ -1,0 +1,153 @@
+name: Checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Sunday 02:00 UTC = Sunday 08:00 Asia/Dhaka — a readiness report waiting
+    # on Monday morning, before the management review.
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  engine:
+    name: Python engine
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Compile all Python
+        run: python3 -m compileall -q engine
+
+      - name: Unit tests
+        run: python3 -m unittest discover -s engine/tests -t . -v
+
+      - name: CAP analytics smoke test
+        run: |
+          python3 engine/cap_analytics.py summary data/seed_data.json
+          python3 engine/cap_analytics.py quality data/seed_data.json
+          python3 engine/cap_analytics.py report  data/seed_data.json --out /tmp/cap.md
+          test -s /tmp/cap.md
+
+      - name: ORSVAI integrity check
+        run: python3 engine/next_cop_engine.py orsvai data/seed_data.json
+
+      - name: Clause register markdown is in sync
+        run: |
+          python3 engine/build_register_md.py
+          if ! git diff --quiet -- docs/clause-register.md; then
+            echo "::error::docs/clause-register.md is out of date."
+            echo "Run 'make register' and commit the result."
+            exit 1
+          fi
+          echo "Clause register markdown is in sync"
+
+      - name: Readiness report
+        run: |
+          mkdir -p build
+          python3 engine/next_cop_engine.py report data/seed_data.json --out build/readiness-report.md
+          python3 engine/next_cop_engine.py cap    data/seed_data.json --out build/corrective-action-plan.csv
+          {
+            echo '## NEXT COP readiness'
+            echo
+            python3 engine/next_cop_engine.py score data/seed_data.json | sed 's/^/    /'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: readiness-report
+          path: build/
+          retention-days: 90
+
+  frontend:
+    name: Front end
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: JavaScript syntax
+        run: |
+          for f in docs/assets/js/*.js; do node --check "$f" && echo "$f OK"; done
+
+      - name: Every module is loaded by index.html
+        run: |
+          fail=0
+          for f in docs/assets/js/*.js; do
+            base="assets/js/$(basename "$f")"
+            grep -q "$base" docs/index.html || { echo "::error::$base is never loaded"; fail=1; }
+          done
+          exit $fail
+
+      - name: Seed register is valid and non-trivial
+        run: |
+          cat > /tmp/check-seed.js <<'JS'
+          const fs = require('fs');
+          const src = fs.readFileSync('docs/assets/data/data.js', 'utf8');
+          const marker = 'const NEXT_SEED = ';
+          const i = src.indexOf(marker);
+          if (i === -1) {
+            console.error('data.js is missing the NEXT_SEED assignment');
+            process.exit(1);
+          }
+          let body = src.slice(i + marker.length).trim();
+          if (body.endsWith(';')) body = body.slice(0, -1);
+          const seed = JSON.parse(body);
+          const n = seed.items.length;
+          if (n < 200) {
+            console.error('register too small: ' + n);
+            process.exit(1);
+          }
+          const ids = new Set(seed.items.map(function (x) { return x.id; }));
+          if (ids.size !== n) {
+            console.error('duplicate clause ids in the register');
+            process.exit(1);
+          }
+          const graded = seed.items.every(function (x) { return !!x.grade && !!x.requirement; });
+          if (!graded) {
+            console.error('a clause is missing its grade or requirement');
+            process.exit(1);
+          }
+          console.log('register OK - ' + n + ' clauses, ' + seed.sections.length + ' sections');
+          JS
+          node /tmp/check-seed.js
+
+      - name: Every asset referenced by index.html exists
+        run: |
+          fail=0
+          for f in $(grep -oE '(href|src)="assets/[^"]+"' docs/index.html | sed -E 's/.*"(.*)"/\1/'); do
+            if [ ! -f "docs/$f" ]; then echo "::error::missing asset docs/$f"; fail=1; fi
+          done
+          exit $fail
+
+      - name: No committed Apps Script URL
+        run: |
+          if grep -qE 'appsScriptUrl:\s*"https://' docs/assets/js/config.js; then
+            echo "::error::config.js has a deployment URL committed. Keep it empty on main."
+            exit 1
+          fi
+          echo "config.js is clean"
+
+  gate:
+    name: Zero-tolerance gate
+    runs-on: ubuntu-latest
+    # Informational on the shipped register, which starts with every clause
+    # open. Point this at a live export and drop continue-on-error to make it
+    # a real release gate.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Any open Category 5 or 6 clauses?
+        run: python3 engine/next_cop_engine.py gate data/seed_data.json
